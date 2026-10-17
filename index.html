@@ -1,15 +1,153 @@
-
 <!DOCTYPE html>
 <html lang="vi">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Snake 2D</title>
-    <link rel="stylesheet" href="./css/style.css">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>SnakeBlue</title>
+    <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
-<h1>SNAKE.EXE: NEON MATRIX</h1>
-<p>Project initialized successfully!</p>
-<script type="module" src="./js/main.js"></script>
+<div class="app">
+    <!-- Header chung -->
+    <header class="site-header">
+        <div class="icon">▦</div>
+        <div class="game-name">
+            <h1>SNAKE BLUE</h1>
+            <span>Version 1.0</span>
+        </div>
+        <div class="level">6 LEVELS</div>
+    </header>
+
+    <main class="container">
+        <!-- HOME SCREEN -->
+        <section class="home menu-home" id="menu-home">
+            <div class="welcome col-left">
+                <div class="text">Welcome To My Game!!</div>
+                <h2>READY TO <br> <em>PLAY?</em></h2>
+                <p>Điều khiển rắn, ăn táo và vượt qua 6 thử thách với cơ chế khác nhau.</p>
+                <div class="welcome-art" aria-hidden="true">
+                    <i></i><i></i><i></i><i></i><i></i><b></b>
+                </div>
+                <small>TIPS: WASD / ARROW KEYS · SPACE TO PAUSE</small>
+            </div>
+            <nav class="menu-actions col-right" aria-label="Main menu">
+                <button class="btn primary" id="start-btn">▶ START GAME</button>
+                <button class="btn" data-screen="levels-screen">SELECT LEVEL</button>
+                <button class="btn" data-screen="help-screen">HOW TO PLAY</button>
+                <button class="btn" data-screen="scores-screen">HIGH SCORE</button>
+                <button class="btn" data-screen="settings-screen">SETTINGS</button>
+            </nav>
+        </section>
+
+        <!-- LEVELS SCREEN -->
+        <section class="screen" id="levels-screen" hidden>
+            <h2 class="section-title">SELECT LEVEL</h2>
+            <p class="section-intro">Hoàn thành Level 1 để mở khóa Level 2. Các level còn lại đang phát triển.</p>            <div class="level-grid" id="level-grid"></div>
+            <button class="btn back-btn" data-screen="menu-screen">← BACK TO MENU</button>
+        </section>
+
+        <!-- HELP SCREEN -->
+        <section class="screen" id="help-screen" hidden>
+            <h2 class="section-title">HOW TO PLAY</h2>
+            <div class="info-card">
+                <p><strong>Di chuyển:</strong> W/A/S/D hoặc 4 phím mũi tên.</p>
+                <p><strong>Tạm dừng:</strong> SPACE hoặc P.</p>
+                <p><strong>Ăn táo:</strong> Mỗi táo +10 điểm và tăng 1 đốt.</p>
+                <p><strong>Game Over:</strong> Rắn chạm tường hoặc tự cắn thân.</p>
+                <p><strong>Level 1:</strong> Ăn 10 quả táo (150ms/bước).</p>
+                <p><strong>Level 2:</strong> Ăn 15 quả táo với tốc độ nhanh hơn (127ms/bước).</p>
+                <p><strong>Level 3:</strong> Đạt 25 đốt, tránh các khối chướng ngại hình chữ H.</p>
+
+                <p class="section-intro">Hoàn thành từng level để mở khóa màn tiếp theo. Level 1–3 đã có thể chơi.</p>
+            </div>
+
+            <button class="btn back-btn" data-screen="menu-screen">← BACK TO MENU</button>
+        </section>
+
+        <!-- SCORES SCREEN -->
+        <section class="screen" id="scores-screen" hidden>
+            <h2 class="section-title">HIGH SCORE</h2>
+            <p class="section-intro">Điểm cao được lưu ngay trên trình duyệt.</p>
+            <div class="record">
+                <span>PERSONAL BEST</span>
+                <strong id="record-score">000000</strong>
+            </div>
+            <button class="btn back-btn" data-screen="menu-screen">← BACK TO MENU</button>
+        </section>
+
+        <!-- SETTINGS SCREEN -->
+        <section class="screen" id="settings-screen" hidden>
+            <h2 class="section-title">SETTINGS</h2>
+            <div class="info-card setting-card">
+                <label for="grid-toggle">
+                    Hiển thị đường lưới
+                    <input id="grid-toggle" type="checkbox" checked>
+                </label>
+            </div>
+            <button class="btn back-btn" data-screen="menu-screen">← BACK TO MENU</button>
+        </section>
+
+        <!-- GAME SCREEN (FIXED TO VIEWPORT) -->
+        <section class="screen game-screen" id="game-screen" hidden>
+            <div class="game-top">
+                <div>
+                    <h2>PIXEL SNAKE</h2>
+                    <p id="level-name">LEVEL 01 · CLASSIC</p>
+                </div>
+                <button class="btn small" id="pause-btn">Ⅱ PAUSE</button>
+            </div>
+
+            <div class="score-bar">
+                <div><span>SCORE</span><strong id="score">000000</strong></div>
+                <div><span>BEST SCORE</span><strong id="best-score">000000</strong></div>
+                <div><span>LEVEL</span><strong id="level">01/06</strong></div>
+            </div>
+
+            <div class="board-frame">
+                <div id="game-board" aria-label="Bàn chơi Snake 20 nhân 20 ô"></div>
+
+                <!-- Overlays nằm khít trong bàn chơi -->
+                <div id="pause-overlay" class="overlay" hidden>
+                    <h3>GAME PAUSED</h3>
+                    <p>Trò chơi đang tạm dừng</p>
+                    <button class="btn primary" id="resume-btn">▶ RESUME</button>
+                    <button class="btn" id="restart-btn">RESTART</button>
+                    <button class="btn" data-menu>MAIN MENU</button>
+                </div>
+
+                <div id="over-overlay" class="overlay" hidden>
+                    <h3>GAME OVER</h3>
+                    <p id="over-detail"></p>
+                    <button class="btn primary" id="retry-btn">↻ PLAY AGAIN</button>
+                    <button class="btn" data-menu>MAIN MENU</button>
+                </div>
+
+                <div id="win-overlay" class="overlay" hidden>
+                    <h3>LEVEL COMPLETED!</h3>
+                    <p id="win-detail"></p>
+                    <button class="btn primary" id="next-btn">▶ NEXT LEVEL</button>
+                    <button class="btn primary" id="replay-btn">↻ REPLAY</button>
+                    <button class="btn" data-menu>MAIN MENU</button>
+                </div>
+            </div>
+
+            <div class="goal">
+                <div class="goal-heading">
+                    <span>LEVEL OBJECTIVE</span>
+                    <strong>Eat 10 apples</strong>
+                </div>
+                <div class="progress">
+                    <div id="progress-fill"></div>
+                </div>
+                <small id="progress-label">0 / 10 APPLES</small>
+            </div>
+
+            <div class="help-line">MOVE: WASD / ARROWS · PAUSE: SPACE / P</div>
+        </section>
+    </main>
+
+    <footer>DEVELOP BY @ThaiNguyen</footer>
+</div>
+<script src="js/main.js"></script>
 </body>
 </html>
