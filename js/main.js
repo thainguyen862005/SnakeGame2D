@@ -5,20 +5,51 @@ var speed = 150;
 var target = 10;
 
 var currentLevel = 1;
-var availableLevels = 3;
+var availableLevels = 5;
 var unlockedLevel = 1; //Level cao nhất người chơi được phép chọn
 var levelTimeout = null; //Bộ hẹn giờ dùng để tự chuyển màn
 
 var levels = [
     { name: "CLASSIC", speed: 200, target: 10, goalType: "apples", goalText: "Eat 10 apples" },
-    { name: "SPEED", speed: 170, target: 15, goalType: "apples", goalText: "Eat 15 apples" },
-    { name: "BARRIERS", speed: 170, target: 25, goalType: "length", goalText: "Reach 25 segments", setup: setupLevel3 }
+    { name: "SPEED", speed: 160, target: 15, goalType: "apples", goalText: "Eat 15 apples" },
+    { name: "BARRIERS", speed: 170, target: 25, goalType: "length", goalText: "Reach 25 segments", setup: setupLevel3},
+    { name: "POISON", speed: 200, target: 10, goalType: "apples", goalText: "Eat 10 apples", setup: setupLevel4 },
+    { name: "PORTAL", speed: 230, target: 300, goalType: "score", goalText: "Earn 300 points", setup: setupLevel5 }
 ];
+
+var levelWarnings = [
+    "Ăn 10 táo. Tránh đâm tường và tự cắn thân.",
+    "Ăn 15 táo. Hãy phản xạ nhanh vì rắn di chuyển nhanh hơn.",
+    "Đạt 25 đốt. Cẩn thận chướng ngại vật hình H, T hoặc U.",
+    "Ăn 10 táo thường. Né ma trận độc, chạm độc sẽ đảo phím trong 3 giây.",
+    "Ăn mồi thường +10 điểm hoặc mồi Portal +20 điểm và dịch chuyển. Mỗi lượt chỉ xuất hiện một loại mồi.",
+    "Thử thách cuối cùng đang chờ bạn."
+];
+
+var introTimer = null;
+var introSeconds = 3;
+
 
 var timer = null;
 var snake = [];
 var apple = null;
 var obstacles = [];
+// lv5
+var portalA = null;
+var portalB = null;
+
+var poisonApples = []; //lưu danh sách nhiều mồi độc
+var poisonMatrixSteps = 0; //đếm số bước trước khi ma trận biến mất.
+var poisonEnabled = false;
+var poisonRemaining = 0;
+var poisonExpiresAt = 0;
+var poisonTimer = null;
+var warningTimer = null;
+var poisonUiTimer = null;
+var poisonTotalDuration = 3000;
+var level4IntroDuration = 3000;
+
+
 var direction = "right";
 var inputQueue = [];
 var score = 0;
@@ -76,7 +107,6 @@ function initSnake() {
 }
 
 // Level 3
-
 function setupLevel3() {
     snake = [{ x: 2, y: 16 }, { x: 3, y: 16 }, { x: 4, y: 16 }];
 
@@ -99,12 +129,315 @@ function setupLevel3() {
     }
 }
 
+//lv4
+function setupLevel4() {
+    poisonEnabled = true;
+}
+
+
+function isPoisonApple(x, y) {
+    return poisonApples.some(p => p.x === x && p.y === y);
+}
+
+function createPoisonMatrix() {
+    poisonApples = [];
+    poisonMatrixSteps = 0;
+
+    let head = snake[snake.length - 1];
+
+    // Năm vị trí độc trong ma trận 3x3
+    let pattern = [
+        [0, 0], [2, 0],
+        [1, 1],
+        [0, 2], [2, 2]
+    ];
+
+    let positions = [];
+
+    for (let y = 2; y <= size - 5; y++) {
+        for (let x = 2; x <= size - 5; x++) {
+            let valid = pattern.every(([dx, dy]) => {
+                let px = x + dx;
+                let py = y + dy;
+
+                return !isOnSnake(px, py) && !isObstacle(px, py) && !(apple && apple.x === px && apple.y === py)
+                    && Math.abs(px - head.x) + Math.abs(py - head.y) >= 4;
+            });
+
+            if (valid) positions.push({ x, y });
+        }
+    }
+
+    if (positions.length === 0) return;
+    let start = positions[Math.floor(Math.random() * positions.length)];
+    poisonApples = pattern.map(([dx, dy]) => ({
+        x: start.x + dx,
+        y: start.y + dy
+    }));
+    poisonMatrixSteps = 20;
+}
+
+
+//Hàm show cảnh báo mồi độc
+function showLevel4Intro() {
+    status = "warning";
+    let warning = document.getElementById("poison-warning-overlay");
+    warning.hidden = false;
+    warning.querySelector("h3").textContent = "LEVEL 4 · POISON";
+    warning.querySelector(".warning-message").textContent =
+        "Cẩn thận táo tím! Ăn phải sẽ đảo hướng điều khiển trong 3 giây.";
+    warning.querySelector(".warning-hint").textContent = "↑ ↔ ↓   |   ← ↔ →";
+
+    let remaining = level4IntroDuration;
+    warning.querySelector(".warning-count").textContent = "BẮT ĐẦU SAU 3 GIÂY";
+
+    warningTimer = setInterval(function () {
+        remaining -= 100;
+
+        warning.querySelector(".warning-count").textContent =
+            "BẮT ĐẦU SAU " + Math.max(1, Math.ceil(remaining / 1000)) + " GIÂY";
+
+        if (remaining > 0) return;
+
+        clearInterval(warningTimer);
+        warningTimer = null;
+        warning.hidden = true;
+
+        status = "playing";
+        timer = setInterval(moveSnake, speed);
+    }, 100);
+}
+
+
+
+function updatePoisonUI() {
+    let line = document.querySelector(".help-line");
+    let hud = document.getElementById("poison-timer");
+    let active = poisonRemaining > 0;
+
+    line.textContent = active
+        ? "POISONED: PHÍM ĐANG ĐẢO NGƯỢC"
+        : "MOVE: WASD / ARROWS · PAUSE: SPACE / P";
+
+    line.classList.toggle("poison-warning", active);
+    hud.hidden = !active;
+
+    if (!active) return;
+
+    let left = status === "paused"
+        ? poisonRemaining
+        : Math.max(0, poisonExpiresAt - Date.now());
+
+    document.getElementById("poison-seconds").textContent =
+        (left / 1000).toFixed(1) + "s";
+
+    document.getElementById("poison-timer-fill").style.width =
+        Math.max(0, left / poisonTotalDuration * 100) + "%";
+}
+
+function resetPoisonEffect() {
+    clearInterval(warningTimer);
+    warningTimer = null;
+    document.getElementById("poison-warning-overlay").hidden = true;
+
+    clearTimeout(poisonTimer);
+    poisonTimer = null;
+
+    clearInterval(poisonUiTimer);
+    poisonUiTimer = null;
+
+    poisonRemaining = 0;
+    poisonExpiresAt = 0;
+    poisonApples = [];
+    poisonMatrixSteps = 0;
+    inputQueue = [];
+
+    updatePoisonUI();
+}
+
+function endPoisonEffect() {
+    poisonTimer = null;
+
+    clearInterval(poisonUiTimer);
+    poisonUiTimer = null;
+
+    poisonRemaining = 0;
+    poisonExpiresAt = 0;
+    inputQueue = [];
+
+    updatePoisonUI();
+}
+
+function resumePoisonEffect() {
+    if (poisonRemaining <= 0) return;
+
+    poisonExpiresAt = Date.now() + poisonRemaining;
+
+    clearTimeout(poisonTimer);
+    clearInterval(poisonUiTimer);
+
+    poisonTimer = setTimeout(endPoisonEffect, poisonRemaining);
+    poisonUiTimer = setInterval(updatePoisonUI, 50);
+
+    updatePoisonUI();
+}
+
+function pausePoisonEffect() {
+    if (poisonTimer === null) return;
+
+    poisonRemaining = Math.max(0, poisonExpiresAt - Date.now());
+
+    clearTimeout(poisonTimer);
+    poisonTimer = null;
+
+    clearInterval(poisonUiTimer);
+    poisonUiTimer = null;
+
+    updatePoisonUI();
+}
+
+
+function isPoisonReversed() {
+    return status === "playing" && poisonRemaining > 0 && Date.now() < poisonExpiresAt;
+}
+
+
+function getPoisonDirection(next) {
+    if (!isPoisonReversed()) return next;
+
+    if (next === "up") return "down";
+    if (next === "down") return "up";
+    if (next === "left") return "right";
+    if (next === "right") return "left";
+
+    return next;
+}
+
+
+
+
+function eatPoisonApple() {
+    if (snake.length > 3)
+        snake.shift();
+    let head = snake[snake.length - 1];
+    poisonApples = poisonApples.filter(p => p.x !== head.x || p.y !== head.y);
+    inputQueue = [];
+    poisonRemaining = poisonTotalDuration;
+    resumePoisonEffect();
+    let board = document.querySelector(".board-frame");
+    board.classList.remove("poison-hit");
+    void board.offsetWidth;
+    board.classList.add("poison-hit");
+}
+
+
+// lv5
+function setupLevel5() {
+    portalA = null;
+    portalB = null;
+}
+
+function isPortal(x, y) {
+    return (portalA !== null && portalA.x === x && portalA.y === y) ||
+        (portalB !== null && portalB.x === x && portalB.y === y);
+}
+
+function createPortalPair() {
+    portalA = null;
+    portalB = null;
+    if (currentLevel !== 5) return;
+    let empty = [];
+    for (let y = 0; y < size; y++) {
+        for (let x = 0; x < size; x++) {
+            if (!isOnSnake(x, y) && !isObstacle(x, y) && !isPoisonApple(x, y) &&
+                !(apple && apple.x === x && apple.y === y)) {
+                empty.push({ x: x, y: y });
+            }
+        }
+    }
+
+    if (empty.length < 2) return;
+
+    let index = Math.floor(Math.random() * empty.length);
+    portalA = empty.splice(index, 1)[0];
+
+    let distant = empty.filter(p =>
+        Math.abs(p.x - portalA.x) + Math.abs(p.y - portalA.y) >= 7
+    );
+
+    let choices = distant.length ? distant : empty;
+    portalB = choices[Math.floor(Math.random() * choices.length)];
+}
+
+function createFoodLevel5(firstRound = false) {
+    apple = null;
+    portalA = null;
+    portalB = null;
+
+    if (currentLevel !== 5) return;
+
+    if (firstRound || Math.random() < 0.7) {
+        apple = createApple();
+    } else {
+        createPortalPair();
+    }
+}
+
+
+function getPortalDestination(x, y) {
+    if (currentLevel !== 5 || portalA === null || portalB === null) return null;
+    if (x === portalA.x && y === portalA.y)
+        return { x: portalB.x, y: portalB.y };
+    if (x === portalB.x && y === portalB.y)
+        return { x: portalA.x, y: portalA.y };
+    return null;
+}
+
+
+function eatPortalPair(entryX, entryY, exit) {
+    if (isOnSnake(entryX, entryY) || isOnSnake(exit.x, exit.y)) {
+        finishGame("over");
+        return;
+    }
+    // Ăn mồi thứ nhất và dịch chuyển tới mồi thứ hai
+    snake.push({ x: entryX, y: entryY });
+    snake.push({ x: exit.x, y: exit.y });
+
+    // Hai mồi: mỗi mồi 10 điểm và 1 đốt
+    appleCount += 2;
+    score += 20;
+    levelScore += 20;
+
+    if (score > bestScore) {
+        bestScore = score;
+        saveData("pixelSnakeBest", String(bestScore));
+    }
+
+    //xóa cặp Portal cũ
+    portalA = null;
+    portalB = null;
+
+    if (isLevelComplete()) {
+        snakeDraw();
+        finishGame("win");
+        return;
+    }
+
+    // Sinh cặp Portal mới
+    createFoodLevel5();
+    snakeDraw();
+}
 
 function prepareLevel() {
     obstacles = [];
+    poisonEnabled = false;
+    portalA = null;
+    portalB = null;
+
     let setup = levels[currentLevel - 1].setup;
     if (typeof setup === "function") setup();
 }
+
 
 function isObstacle(x, y) {
     return obstacles.some(part => part.x === x && part.y === y);
@@ -113,19 +446,28 @@ function isObstacle(x, y) {
 function isOnSnake(x, y) {
     return snake.some(part => part.x === x && part.y === y);
 }
-// =============
+
 
 function clear() {
     for (let i = 0; i < size; i++) {
         for (let j = 0; j < size; j++) {
             let cell = document.getElementById("dot" + i + "_" + j);
-            cell.classList.remove("snake-head", "snake-body", "apple", "obstacle");        }
+            cell.classList.remove("snake-head", "snake-body", "apple", "obstacle", "poison-apple", "portal-a", "portal-b");
+        }
     }
 }
 
 // Vẽ Snake
 function snakeDraw() {
     clear();
+    // lv5
+    if (portalA) {
+        document.getElementById("dot" + portalA.y + "_" + portalA.x).classList.add("portal-a");
+    }
+    if (portalB) {
+        document.getElementById("dot" + portalB.y + "_" + portalB.x).classList.add("portal-b");
+    }
+    //=====
 
     for (let i = 0; i < obstacles.length; i++) {
         let wall = obstacles[i];
@@ -136,6 +478,13 @@ function snakeDraw() {
         let foodCell = document.getElementById("dot" + apple.y + "_" + apple.x);
         foodCell.classList.add("apple");
     }
+    //lv4
+    for (let i = 0; i < poisonApples.length; i++) {
+        let p = poisonApples[i];
+        let cell = document.getElementById("dot" + p.y + "_" + p.x);
+        cell.classList.add("poison-apple");
+    }
+
 
     for (let i = 0; i < snake.length; i++) {
         let part = snake[i];
@@ -152,7 +501,9 @@ function createApple() {
 
     for (let y = 0; y < size; y++) {
         for (let x = 0; x < size; x++) {
-            if (!isOnSnake(x, y) && !isObstacle(x, y)) empty.push({ x: x, y: y });
+            if (!isOnSnake(x, y) && !isObstacle(x, y) && !isPoisonApple(x, y) && !isPortal(x, y)) {
+                empty.push({x: x, y: y});
+            }
         }
     }
 
@@ -185,6 +536,10 @@ function isLevelComplete() {
 // Di chuyển snake
 function moveSnake() {
     if (status !== "playing") return;
+    if (poisonMatrixSteps > 0) {
+        poisonMatrixSteps--;
+        if (poisonMatrixSteps === 0) poisonApples = [];
+    }
     if (inputQueue.length > 0) direction = inputQueue.shift();
 
     let head = snake[snake.length - 1];
@@ -196,12 +551,22 @@ function moveSnake() {
     if (direction === "left") x--;
     if (direction === "right") x++;
 
+    /*lv5*/
+    let destination = getPortalDestination(x, y);
+    if (destination !== null) {
+        eatPortalPair(x, y, destination);
+        return;//tránh xly tiếp ăn mồi thường ữa
+    }
+
+
     //va chạm => return
-    if (x < 0 || x >= size || y < 0 || y >= size || isObstacle(x, y)) {        finishGame("over");
+    if (x < 0 || x >= size || y < 0 || y >= size || isObstacle(x, y)) {
+        finishGame("over");
         return;
     }
 
     let eating = apple !== null && x === apple.x && y === apple.y;
+    let eatingPoison = isPoisonApple(x, y);
     let start = 1; // Đuôi cuối sẽ rời đi nếu không ăn táo.
     if (eating) start = 0;
 
@@ -229,12 +594,19 @@ function moveSnake() {
             finishGame("win");
             return;
         }
-        apple = createApple();
+        if (currentLevel === 5) {
+            createFoodLevel5();
+        } else {
+            apple = createApple();
+        }
+        if (currentLevel === 4)
+            createPoisonMatrix();
     } else {
         let tail = snake.shift();
         tail.x = x;
         tail.y = y;
         snake.push(tail);
+        if (eatingPoison) eatPoisonApple();
     }
     snakeDraw();
 }
@@ -283,6 +655,9 @@ function startLevel(level, keepScore) {
     stopGame();
     clearTimeout(levelTimeout);
     levelTimeout = null;
+    clearInterval(introTimer);
+    introTimer = null;
+    resetPoisonEffect();
 
     currentLevel = level;
     let config = levels[currentLevel - 1];
@@ -296,8 +671,20 @@ function startLevel(level, keepScore) {
     if (!keepScore) score = 0;
     levelScore = 0;
     appleCount = 0;
-    apple = createApple();
+
+    //lv5
+    if (currentLevel === 5) {
+        createFoodLevel5(true);
+    } else {
+        apple = createApple();
+    }
+
+
+    //lv4
+    poisonApples = [];
+    poisonMatrixSteps = 0;
     status = "playing";
+
 
     hideOverlays();
     document.getElementById("pause-btn").textContent = "Ⅱ PAUSE";
@@ -306,8 +693,45 @@ function startLevel(level, keepScore) {
 
     showScreen("game-screen");
     snakeDraw();
-    timer = setInterval(moveSnake, speed);
+    showLevelIntro();
+
 }
+// show intro hướng dẫn màn chơi
+function showLevelIntro() {
+    status = "warning";
+
+    let overlay = document.getElementById("level-intro-overlay");
+    let title = document.getElementById("intro-title");
+    let description = document.getElementById("intro-description");
+    let countdown = document.getElementById("intro-countdown");
+
+    title.textContent = "LEVEL " + currentLevel + " · " + levels[currentLevel - 1].name;
+    description.textContent = levelWarnings[currentLevel - 1];
+
+    overlay.hidden = false;
+
+    let remaining = introSeconds;
+    countdown.textContent = "BẮT ĐẦU SAU " + remaining + " GIÂY";
+
+    clearInterval(introTimer);
+
+    introTimer = setInterval(function () {
+        remaining--;
+
+        if (remaining > 0) {
+            countdown.textContent = "BẮT ĐẦU SAU " + remaining + " GIÂY";
+            return;
+        }
+
+        clearInterval(introTimer);
+        introTimer = null;
+        overlay.hidden = true;
+
+        status = "playing";
+        timer = setInterval(moveSnake, speed);
+    }, 1000);
+}
+
 
 function startGame() {
     startLevel(1, false);
@@ -326,6 +750,8 @@ function nextLevel() {
 
 function finishGame(result) {
     stopGame();
+    clearInterval(introTimer);
+    introTimer = null;
     status = result;
 
     if (result === "over") {
@@ -348,7 +774,7 @@ function finishGame(result) {
         unlockedLevel = Math.max(unlockedLevel, currentLevel + 1);
         saveData("snakeUnlockedLevel", String(unlockedLevel));
         createLevelCards();
-        levelTimeout = setTimeout(nextLevel, 1500);
+        levelTimeout = setTimeout(nextLevel, 6000);
     }
 }
 
@@ -357,11 +783,16 @@ function pauseGame() {
     if (status === "playing") {
         stopGame();
         status = "paused";
+        updatePoisonUI();
+
         document.getElementById("pause-overlay").hidden = false;
         document.getElementById("pause-btn").textContent = "▶ RESUME";
     } else if (status === "paused") {
         inputQueue = [];
         status = "playing";
+        resumePoisonEffect();
+        updatePoisonUI();
+
         document.getElementById("pause-overlay").hidden = true;
         document.getElementById("pause-btn").textContent = "Ⅱ PAUSE";
         timer = setInterval(moveSnake, speed);
@@ -371,6 +802,9 @@ function pauseGame() {
 // btn back MENU
 function backToMenu() {
     stopGame();
+    clearInterval(introTimer);
+    introTimer = null;
+    document.getElementById("level-intro-overlay").hidden = true;
     clearTimeout(levelTimeout);
     levelTimeout = null;
     status = "menu";
@@ -425,16 +859,51 @@ function changeDirection(next) {
 // xử lý press key từ bàn phím
 function handleKey(event) {
     let key = event.key.toLowerCase();
+    let code = event.code;
     let next = "";
-    if (key === "w" || key === "arrowup") next = "up";
-    if (key === "s" || key === "arrowdown") next = "down";
-    if (key === "a" || key === "arrowleft") next = "left";
-    if (key === "d" || key === "arrowright") next = "right";
 
-    if ((next !== "" || key === " " || key === "p") && (status === "playing" || status === "paused")) event.preventDefault();
-    if (next !== "") changeDirection(next);
-    if ((key === " " || key === "p") && !event.repeat && (status === "playing" || status === "paused")) pauseGame();
+    if (code === "KeyW" || key === "arrowup") next = "up";
+    if (code === "KeyS" || key === "arrowdown") next = "down";
+    if (code === "KeyA" || key === "arrowleft") next = "left";
+    if (code === "KeyD" || key === "arrowright") next = "right";
+
+    let pauseKey = code === "Space" || code === "KeyP" || key === " " || key === "p";
+
+    if ((next !== "" || pauseKey) && (status === "playing" || status === "paused")) {
+        event.preventDefault();
+    }
+    if (next !== "") changeDirection(getPoisonDirection(next));
+    if (pauseKey && !event.repeat && (status === "playing" || status === "paused")) {
+        pauseGame();
+    }
 }
+
+
+function handleMouseClick(event) {
+    if (status !== "playing") return;
+
+    let rect = game.getBoundingClientRect();
+    let cellX = Math.floor((event.clientX - rect.left) / rect.width * size);
+    let cellY = Math.floor((event.clientY - rect.top) / rect.height * size);
+
+    cellX = Math.max(0, Math.min(size - 1, cellX));
+    cellY = Math.max(0, Math.min(size - 1, cellY));
+
+    let head = snake[snake.length - 1];
+    let dx = cellX - head.x;
+    let dy = cellY - head.y;
+
+    if (dx === 0 && dy === 0) return;
+    let next = "";
+
+    if (Math.abs(dx) >= Math.abs(dy)) {
+        next = dx > 0 ? "right" : "left";
+    } else {
+        next = dy > 0 ? "down" : "up";
+    }
+    changeDirection(getPoisonDirection(next));
+}
+
 
 
 function initButtons() {
@@ -455,8 +924,6 @@ function initButtons() {
             showScreen(this.getAttribute("data-screen"));
         });
     }
-    document.addEventListener("keydown", handleKey);
-
     let toggle = document.getElementById("grid-toggle");
     toggle.checked = readData("pixelSnakeGrid") !== "false";
     document.body.classList.toggle("hide-grid", !toggle.checked);
@@ -471,7 +938,10 @@ function initButtons() {
 bestScore = Number(readData("pixelSnakeBest")) || 0;
 unlockedLevel = Math.max(1, Math.min(availableLevels, Number(readData("snakeUnlockedLevel")) || 1));
 
+document.addEventListener("keydown", handleKey);
+
 initGame();
 createLevelCards();
 initButtons();
 showScreen("menu-home");
+

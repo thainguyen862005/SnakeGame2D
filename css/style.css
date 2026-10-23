@@ -503,6 +503,173 @@ body.in-game .help-line {
     box-shadow: inset 0 0 0 2px rgba(255, 222, 186, 0.16);
 }
 
+/*Mồi độc */
+/* lv4- POISON */
+.cell.poison-apple {
+    position: relative;
+}
+
+.cell.poison-apple::after {
+    content: "";
+    position: absolute;
+    inset: 17%;
+    background: #a47bb7;
+    border: 2px solid #6d5585;
+    border-radius: 50%;
+}
+
+.help-line.poison-warning {
+    color: #c9a7d8;
+    font-weight: bold;
+}
+
+/*Hệu ứng ăn mồi độc*/
+#poison-warning-overlay {
+    z-index: 30;
+    background: rgba(15, 23, 42, 0.92);
+}
+
+#poison-warning-overlay h3 {
+    color: #f1bd6e;
+    animation: poison-blink 0.45s ease-in-out infinite alternate;
+}
+
+@keyframes poison-blink {
+    from { opacity: 1; }
+    to { opacity: 0.35; }
+}
+
+
+/* LEVEL 4 - COUNTDOWN */
+.poison-timer {
+    width: 100%;
+    background: #28364c;
+    padding: 8px 12px;
+    border: 1px solid #82688f;
+}
+
+.poison-timer-label {
+    display: flex;
+    justify-content: space-between;
+    font-size: 12px;
+    color: #dcc3e8;
+    margin-bottom: 6px;
+}
+
+.poison-timer-track {
+    height: 8px;
+    background: #18253b;
+    border-radius: 6px;
+    overflow: hidden;
+}
+
+#poison-timer-fill {
+    height: 100%;
+    width: 100%;
+    background: #b58acb;
+    transition: width .05s linear;
+}
+
+.warning-count {
+    color: #f1bd6e;
+    font-size: 14px;
+}
+
+.board-frame.poison-hit {
+    animation: poison-hit .7s ease-out;
+}
+
+@keyframes poison-hit {
+    0%, 40% {
+        box-shadow: 0 0 0 5px rgba(177, 111, 191, .65);
+    }
+
+    100% {
+        box-shadow: 0 0 0 0 transparent;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .board-frame.poison-hit {
+        animation: none;
+    }
+}
+/*WARNING cho intro mỗi level*/
+.level-intro {
+    z-index: 35;
+    background: rgba(17, 30, 49, 0.94);
+    text-align: center;
+}
+
+.level-intro h3 {
+    color: #f1bd6e;
+    font-size: 24px;
+    animation: intro-blink 0.7s infinite alternate;
+}
+
+.level-intro p {
+    color: #e0e8f4;
+    font-size: 15px;
+    line-height: 1.6;
+    max-width: 320px;
+}
+
+#intro-countdown {
+    color: #9ec2ed;
+    font-size: 18px;
+}
+
+@keyframes intro-blink {
+    from { opacity: 1; }
+    to { opacity: 0.45; }
+}
+
+/*lv5*/
+.cell.portal-a,
+.cell.portal-b {
+    position: relative;
+    background: transparent;
+}
+
+/* Vong tron Portal ben ngoai */
+.cell.portal-a::before,
+.cell.portal-b::before {
+    content: "";
+    position: absolute;
+    inset: 4%;
+    border: 2px solid #b59cdb;
+    border-radius: 50%;
+    background: rgba(150, 118, 195, 0.18);
+}
+
+/* Vong Portal mau xanh */
+.cell.portal-b::before {
+    border-color: #82c4e2;
+    background: rgba(82, 151, 187, 0.18);
+}
+
+/* Hinh moi ben trong - giong moi thuong */
+.cell.portal-a::after,
+.cell.portal-b::after {
+    content: "";
+    position: absolute;
+    inset: 27%;
+    background: var(--food);
+    border-radius: 25%;
+}
+
+/* Khong ve Portal de len dau va than ran */
+.cell.snake-head.portal-a::before,
+.cell.snake-head.portal-a::after,
+.cell.snake-head.portal-b::before,
+.cell.snake-head.portal-b::after,
+.cell.snake-body.portal-a::before,
+.cell.snake-body.portal-a::after,
+.cell.snake-body.portal-b::before,
+.cell.snake-body.portal-b::after {
+    display: none;
+}
+
 
 
 footer {

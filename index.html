@@ -42,9 +42,11 @@
         <!-- LEVELS SCREEN -->
         <section class="screen" id="levels-screen" hidden>
             <h2 class="section-title">SELECT LEVEL</h2>
-            <p class="section-intro">Hoàn thành Level 1 để mở khóa Level 2. Các level còn lại đang phát triển.</p>            <div class="level-grid" id="level-grid"></div>
+            <p class="section-intro">Hoàn thành từng level để mở khóa màn tiếp theo. Level 1–5 đã có thể chơi.</p>
+            <div class="level-grid" id="level-grid"></div>
             <button class="btn back-btn" data-screen="menu-screen">← BACK TO MENU</button>
         </section>
+
 
         <!-- HELP SCREEN -->
         <section class="screen" id="help-screen" hidden>
@@ -54,11 +56,12 @@
                 <p><strong>Tạm dừng:</strong> SPACE hoặc P.</p>
                 <p><strong>Ăn táo:</strong> Mỗi táo +10 điểm và tăng 1 đốt.</p>
                 <p><strong>Game Over:</strong> Rắn chạm tường hoặc tự cắn thân.</p>
-                <p><strong>Level 1:</strong> Ăn 10 quả táo (150ms/bước).</p>
-                <p><strong>Level 2:</strong> Ăn 15 quả táo với tốc độ nhanh hơn (127ms/bước).</p>
-                <p><strong>Level 3:</strong> Đạt 25 đốt, tránh các khối chướng ngại hình chữ H.</p>
+                <p><strong>Level 1:</strong> Ăn 10 quả táo (200ms/bước).</p>
+                <p><strong>Level 2:</strong> Ăn 15 quả táo với tốc độ nhanh hơn (170ms/bước).</p>
+                <p><strong>Level 3:</strong> Đạt 25 đốt, tránh các khối chướng ngại hình chữ H/T/U.</p>
+                <p><strong>Level 4:</strong> Ăn 10 táo thường; táo độc màu tím làm ngắn rắn 1 đốt và đảo ngược điều khiển trong 3 giây.</p>
+                <p><strong>Level 5:</strong> Mồi thường +10 điểm hoặc cặp mồi Portal +20 điểm và dịch chuyển. Mỗi lượt chỉ có một loại mồi. Đạt 300 điểm để thắng.</p>
 
-                <p class="section-intro">Hoàn thành từng level để mở khóa màn tiếp theo. Level 1–3 đã có thể chơi.</p>
             </div>
 
             <button class="btn back-btn" data-screen="menu-screen">← BACK TO MENU</button>
@@ -106,6 +109,19 @@
             <div class="board-frame">
                 <div id="game-board" aria-label="Bàn chơi Snake 20 nhân 20 ô"></div>
 
+                <div id="level-intro-overlay" class="overlay level-intro" hidden>
+                    <h3 id="intro-title">LEVEL 1 · CLASSIC</h3>
+                    <p id="intro-description">Eat 10 apples</p>
+                    <strong id="intro-countdown">BẮT ĐẦU SAU 3 GIÂY</strong>
+                </div>
+
+                <div id="poison-warning-overlay" class="overlay poison-alert" hidden>
+                    <h3>LEVEL 4 · POISON</h3>
+                    <p class="warning-message">Cẩn thận táo tím! Ăn phải sẽ đảo ngược điều khiển trong 3 giây.</p>
+                    <p class="warning-hint">↑ ↔ ↓ &nbsp; | &nbsp; ← ↔ →</p>
+                    <strong class="warning-count">BẮT ĐẦU SAU 3 GIÂY</strong>
+                </div>
+
                 <!-- Overlays nằm khít trong bàn chơi -->
                 <div id="pause-overlay" class="overlay" hidden>
                     <h3>GAME PAUSED</h3>
@@ -143,6 +159,17 @@
             </div>
 
             <div class="help-line">MOVE: WASD / ARROWS · PAUSE: SPACE / P</div>
+
+            <div id="poison-timer" class="poison-timer" hidden>
+                <div class="poison-timer-label">
+                    <strong>ĐANG BỊ ĐẢO PHÍM</strong>
+                    <span id="poison-seconds">3.0s</span>
+                </div>
+                <div class="poison-timer-track">
+                    <div id="poison-timer-fill"></div>
+                </div>
+            </div>
+
         </section>
     </main>
 
